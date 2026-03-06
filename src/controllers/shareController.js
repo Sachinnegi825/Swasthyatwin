@@ -15,19 +15,28 @@ export const exportClinicalPDF = async (req, res) => {
     const { profileId } = req.body;
     const userId = req.user;
 
-    // 1. Create a temporary high-security token (Valid for only 10 minutes for PDF generation)
-    const token = crypto.randomBytes(16).toString("hex");
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-    await ShareToken.create({ token, profileId, userId, expiresAt });
-
-    // 2. Construct the URL that Puppeteer will visit
-    // Use the internal network URL (localhost) to make it faster
-    const internalUrl = `${req.protocol}://${req.get("host")}/api/share/view/${token}`;
-
     console.log(`📑 Compiling PDF for Profile: ${profileId}`);
 
-    // 3. Generate the PDF
-    const buffer = await generatePDFBuffer(internalUrl);
+    // 1. Fetch all required data (same as viewSharedReport)
+    const [profile, readings, records] = await Promise.all([
+      Profile.findOne({ localId: profileId, userId }),
+      HealthReading.find({ profileId, userId })
+        .sort({ timestamp: -1 })
+        .limit(30),
+      MedicalRecord.find({ profileId, userId })
+        .sort({ recordDate: -1 })
+        .limit(5),
+    ]);
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    // 2. Prepare data object for PDF generation
+    const data = { profile, readings, records };
+
+    // 3. Generate PDF directly from data (no token/URL needed)
+    const buffer = await generatePDFBuffer(data);
 
     // 4. Send the PDF file back to the mobile app
     res.set({

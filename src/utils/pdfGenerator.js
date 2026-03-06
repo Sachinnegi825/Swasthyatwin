@@ -1,19 +1,26 @@
 import puppeteer from "puppeteer";
+import { generateHTMLReport } from "./reportTemplate.js";
 
-export const generatePDFBuffer = async (reportUrl) => {
+export const generatePDFBuffer = async (data) => {
   let browser;
   try {
     // 1. Launch Headless Browser
     browser = await puppeteer.launch({
       headless: "new",
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage", // Prevents memory issues on servers
+      ],
     });
 
     const page = await browser.newPage();
 
-    // 2. Visit the Web Report Page
-    // 'networkidle0' ensures the page is fully loaded before printing
-    await page.goto(reportUrl, { waitUntil: "networkidle0" });
+    // 2. Generate HTML from data and set it directly (no network call)
+    const htmlContent = generateHTMLReport(data);
+    await page.setContent(htmlContent, {
+      waitUntil: "networkidle0",
+    });
 
     // 3. Set standard A4 Print options
     const pdfBuffer = await page.pdf({
