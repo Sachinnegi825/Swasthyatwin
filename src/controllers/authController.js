@@ -20,7 +20,7 @@ const generateTokens = (id) => {
 export const signup = async (req, res) => {
   try {
     const { email, password, name } = req.body;
-    console.log("Signup attempt:", email); 
+    console.log("Signup attempt:", email);
 
     const existingUser = await User.findOne({ email });
     if (existingUser)
@@ -49,6 +49,8 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
     const tokens = generateTokens(user._id);
+    console.log("Login successful for:", tokens);
+
     res.json({ user: { id: user._id, email, name: user.name }, ...tokens });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -62,13 +64,13 @@ export const refreshToken = async (req, res) => {
 
   try {
     const payload = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    
+
     // ROTATION: Issue a NEW access token AND a NEW refresh token
     const tokens = generateTokens(payload.id);
 
-    res.json({ 
+    res.json({
       accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken 
+      refreshToken: tokens.refreshToken,
     });
   } catch (err) {
     res.status(403).json({ message: "Invalid refresh token" });
